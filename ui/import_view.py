@@ -84,9 +84,9 @@ def update_table():
             item = QTableWidgetItem(str(value))
             if column == 5:
                 item.setTextAlignment( Qt.AlignmentFlag.AlignCenter)
-                if value == "Gültig": item.setForeground(QColor("green"))
+                if value == "Valid": item.setForeground(QColor("green"))
                 elif value == "Warning": item.setForeground(QColor("orange"))
-                elif value == "Fehler": item.setForeground(QColor("red"))
+                elif value == "Error": item.setForeground(QColor("red"))
             table.setItem(row, column, item)
 
     total = len(records)
@@ -294,6 +294,18 @@ statistics_layout.addWidget(error_label)
 
 layout.addLayout(statistics_layout)
 
+
+# Save button
+bottom_layout = QHBoxLayout()
+
+bottom_layout.addStretch()
+save_to_db_button = QPushButton("Save into DB")
+bottom_layout.addWidget(save_to_db_button)
+
+#after save - add message - QMessageBox.information(history_window, "Success", "Data is saved into DB.")
+
+layout.addLayout(bottom_layout)
+
 # -----------------------------
 # Connect buttons
 import_button.clicked.connect(import_csv)
@@ -301,6 +313,7 @@ edit_button.clicked.connect(edit_record)
 delete_button.clicked.connect(delete_record)
 history_button.clicked.connect(show_history)
 export_button.clicked.connect(export_json)
+#export_button.clicked.connect(save_to_db) #Yurrii code
 
 # Initial display
 update_table()
