@@ -1,4 +1,5 @@
 from datetime import datetime
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QComboBox, QPushButton, QTableWidget, QTableWidgetItem,
@@ -57,7 +58,7 @@ class MainWindow(QMainWindow):
 
         db_toolbar = QHBoxLayout()
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Name oder E-Mail suchen...")
+        self.search_input.setPlaceholderText("Suche")
         self.search_input.textChanged.connect(self._filter_db_table)
 
         db_toolbar.addWidget(self.search_input, 2)
@@ -88,6 +89,7 @@ class MainWindow(QMainWindow):
         self.db_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.db_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.db_table.setSortingEnabled(True)
+        self._setup_db_sort_arrows()
         self.db_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         root.addWidget(self.db_table, 2)
 
@@ -138,6 +140,21 @@ class MainWindow(QMainWindow):
         lbl.setStyleSheet(f"background-color: {bg}; color: {fg}; padding: 4px 10px; border-radius: 10px; font-weight: bold;")
         return lbl
 
+    def _setup_db_sort_arrows(self) -> None:
+        headers = ["ID", "Vorname", "Nachname", "E-Mail", "Telefon", "Abteilung"]
+        header = self.db_table.horizontalHeader()
+        header.setSortIndicatorShown(False)
+        header.setStyleSheet("QHeaderView::up-arrow, QHeaderView::down-arrow { width: 0px; height: 0px; }")
+        self.db_table.setHorizontalHeaderLabels([f"{h}  ▲ ▼" for h in headers])
+
+        def on_header_clicked(col: int) -> None:
+            arrow = "▲" if header.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder else "▼"
+            self.db_table.setHorizontalHeaderLabels(
+                [f"{h}  {arrow}" if i == col else f"{h}  ▲ ▼" for i, h in enumerate(headers)]
+            )
+
+        header.sectionClicked.connect(on_header_clicked)
+
     # --- DB TABLE LOGIC ---
     def _refresh_db_view(self) -> None:
         self._db_employees = self.repo.get_all_employees()
@@ -158,18 +175,38 @@ class MainWindow(QMainWindow):
     def _filter_db_table(self) -> None:
         q = self.search_input.text().strip().lower()
         dept = self.dept_filter.currentText()
-        filtered = [
-            e for e in self._db_employees
-            if (q in e.first_name.lower() or q in e.last_name.lower() or q in e.email.lower())
-            and (dept == "Alle" or (e.department or "").strip() == dept)
-        ]
+
+        filtered = []
+        for e in self._db_employees:
+            # Alle durchsuchbaren Felder der oberen DB-Tabelle sammeln
+            searchable_fields = [
+                str(e.id) if e.id is not None else "",
+                e.first_name or "",
+                e.last_name or "",
+                e.email or "",
+                e.phone or "",
+                e.department or "",
+            ]
+            matches_search = (not q) or any(q in field.lower() for field in searchable_fields)
+            matches_dept = (dept == "Alle") or ((e.department or "").strip() == dept)
+
+            if matches_search and matches_dept:
+                filtered.append(e)
+
         self.db_table.setSortingEnabled(False)
         self.db_table.setRowCount(len(filtered))
         for r, emp in enumerate(filtered):
-            vals = [str(emp.id or ""), emp.first_name, emp.last_name, emp.email, emp.phone or "", emp.department or ""]
-            for c, val in enumerate(vals):
+            # ID als echte Zahl speichern, damit 2 vor 10 sortiert wird
+            id_item = QTableWidgetItem()
+            if emp.id is not None:
+                id_item.setData(Qt.ItemDataRole.DisplayRole, emp.id)
+            self.db_table.setItem(r, 0, id_item)
+
+            other_vals = [emp.first_name, emp.last_name, emp.email, emp.phone or "", emp.department or ""]
+            for c, val in enumerate(other_vals, start=1):
                 self.db_table.setItem(r, c, QTableWidgetItem(val))
         self.db_table.setSortingEnabled(True)
+        self.db_table.horizontalHeader().setSortIndicatorShown(False)
 
     def _get_selected_db_emp(self) -> Employee | None:
         rows = self.db_table.selectionModel().selectedRows()
