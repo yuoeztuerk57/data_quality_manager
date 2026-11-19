@@ -68,7 +68,7 @@ class MainWindow(QMainWindow):
         self.dept_filter.currentTextChanged.connect(self._filter_db_table)
         db_toolbar.addWidget(self.dept_filter)
 
-        self.btn_db_del = QPushButton("Del")
+        self.btn_db_del = QPushButton("Delete")
         self.btn_db_edit = QPushButton("Edit")
         self.btn_db_new = QPushButton("+ Neu")
         self.btn_export_csv = QPushButton("CSV exportieren")
