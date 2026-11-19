@@ -15,10 +15,20 @@ class EmployeeDialog(QDialog):
         layout = QFormLayout(self)
 
         self.first_name_input = QLineEdit(employee.first_name if employee else "")
+        self.first_name_input.setPlaceholderText("Enter first name")
+
         self.last_name_input = QLineEdit(employee.last_name if employee else "")
+        self.last_name_input.setPlaceholderText("Enter last name")
+
         self.email_input = QLineEdit(employee.email if employee else "")
+        self.email_input.setPlaceholderText("Enter email address")
+
         self.phone_input = QLineEdit(employee.phone or "" if employee else "")
+        self.phone_input.setPlaceholderText("Enter phone number")
+
         self.department_input = QLineEdit(employee.department or "" if employee else "")
+        self.department_input.setPlaceholderText("Enter department")
+        
         self.birth_date_input = QLineEdit(employee.birth_date or "" if employee else "")
         self.birth_date_input.setPlaceholderText("YYYY-MM-DD")
 
