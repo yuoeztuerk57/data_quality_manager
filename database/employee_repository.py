@@ -68,3 +68,17 @@ class EmployeeRepository:
                 query,
                 [(r.employee_id, r.column_name, r.error_message, r.severity) for r in results],
             )
+
+    def add_import_history(self, filename: str, import_date: str, records_imported: int, records_rejected: int) -> None:
+        query = """
+                INSERT INTO import_history (filename, import_date, records_imported, records_rejected)
+                VALUES (?, ?, ?, ?)
+                """
+        with get_connection(self.db_path) as conn:
+            conn.execute(query, (filename, import_date, records_imported, records_rejected))
+
+    def get_import_history(self) -> list[dict]:
+        query = "SELECT filename, import_date, records_imported, records_rejected FROM import_history ORDER BY id DESC"
+        with get_connection(self.db_path) as conn:
+            rows = conn.execute(query).fetchall()
+        return [dict(row) for row in rows]

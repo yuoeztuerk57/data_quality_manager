@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QFileDialog, QMessageBox, QStatusBar, QHeaderView, QFrame
 )
 from PyQt6.QtGui import QColor
-from database.connection import init_db, get_connection
+from database.connection import init_db
 from database.employee_repository import EmployeeRepository
 from models.employee import Employee
 from models.validation_result import ValidationResult
@@ -334,11 +334,12 @@ class MainWindow(QMainWindow):
         if all_findings:
             self.repo.save_validation_results(all_findings)
 
-        with get_connection() as conn:
-            conn.execute(
-                "INSERT INTO import_history (filename, import_date, records_imported, records_rejected) VALUES (?, ?, ?, ?)",
-                (self._last_csv_name or "manual.csv", datetime.now().strftime("%d.%m.%Y"), imported, len(remaining)),
-            )
+        self.repo.add_import_history(
+            self._last_csv_name or "manual.csv",
+            datetime.now().strftime("%d.%m.%Y"),
+            imported,
+            len(remaining)
+        )
 
         self._staged_rows = remaining
         self._refresh_db_view()
@@ -348,8 +349,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_history_combo(self) -> None:
         self.history_combo.clear()
-        with get_connection() as conn:
-            rows = conn.execute("SELECT filename, import_date, records_imported, records_rejected FROM import_history ORDER BY id DESC").fetchall()
+        rows = self.repo.get_import_history()
         if not rows:
             self.history_combo.addItem("Import-Historie: Noch keine Importe")
             return
