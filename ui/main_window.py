@@ -330,6 +330,10 @@ class MainWindow(QMainWindow):
                 self.repo.add_employee(emp)
                 imported += 1
 
+        all_findings = [f for flist in self._staged_findings.values() for f in flist]
+        if all_findings:
+            self.repo.save_validation_results(all_findings)
+
         with get_connection() as conn:
             conn.execute(
                 "INSERT INTO import_history (filename, import_date, records_imported, records_rejected) VALUES (?, ?, ?, ?)",
