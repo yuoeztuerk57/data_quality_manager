@@ -7,6 +7,7 @@ class EmployeeRepository:
     def __init__(self, connection):
         self.conn = connection
 
+# einzelnen Mitarbeiter hinzufügen
     def add_employee(self, employee):
         query = """
                 INSERT INTO employees (first_name, last_name, email, phone, department, birth_date)
@@ -27,6 +28,7 @@ class EmployeeRepository:
         cr.close()
         return employee.id
 
+# mehrere Mitarbeiter aus import CSV hinzufügen
     def add_employees(self, employees):
         inserted_ids = []
         query = """
@@ -50,6 +52,7 @@ class EmployeeRepository:
         cr.close()
         return inserted_ids
 
+# alle Mitarbeiter in SQL Datenbank anzeigen
     def get_all_employees(self):
         query = """
                 SELECT id, first_name, last_name, email, phone, department, birth_date
@@ -62,20 +65,22 @@ class EmployeeRepository:
         cr.close()
         return [self._row_to_employee(row) for row in rows]
 
-    def get_employee_by_id(self, employee_id):
-        query = """
-                SELECT id, first_name, last_name, email, phone, department, birth_date
-                FROM employees
-                WHERE id = ? \
-                """
-        cr = self.conn.cursor()
-        cr.execute(query, (employee_id,))
-        row = cr.fetchone()
-        cr.close()
-        if row is None:
-            return None
-        return self._row_to_employee(row)
+# Filter Mitarbeiter nach ID
+#    def get_employee_by_id(self, employee_id):
+#        query = """
+#                SELECT id, first_name, last_name, email, phone, department, birth_date
+#                FROM employees
+#                WHERE id = ? \
+#                """
+#        cr = self.conn.cursor()
+#        cr.execute(query, (employee_id,))
+#        row = cr.fetchone()
+#        cr.close()
+#        if row is None:
+#            return None
+#        return self._row_to_employee(row)
 
+# aktualisierung der änderungen von Mitarbeitern in Datenbank
     def update_employee(self, employee):
         if employee.id is None:
             raise ValueError("Mitarbeiter ohne ID kann nicht aktualisiert werden.")
@@ -106,6 +111,7 @@ class EmployeeRepository:
         cr.close()
         return updated
 
+# Mitarbeiter löschen
     def delete_employee(self, employee_id):
         query = "DELETE FROM employees WHERE id = ?"
         cr = self.conn.cursor()
@@ -115,6 +121,7 @@ class EmployeeRepository:
         cr.close()
         return deleted
 
+# änderung speichern
     def save_validation_results(self, results):
         if not results:
             return
@@ -131,6 +138,7 @@ class EmployeeRepository:
         cr.executemany(query, rows)
         self.conn.commit()
         cr.close()
+
 
     def get_validation_results(self, employee_id=None):
         cr = self.conn.cursor()
