@@ -1,158 +1,210 @@
+from PyQt6.QtCore import QAbstractTableModel, QModelIndex, Qt
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox,
-    QTableWidget, QTableWidgetItem, QPushButton, QMessageBox
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QTableView,
+    QMessageBox, QLabel, QHeaderView, QAbstractItemView
 )
-from PyQt6.QtCore import pyqtSignal
+
 from models.employee import Employee
-from ui.employee_dialog import EmployeeDialog
+from ui.employee_form import EmployeeForm
+
+
+class EmployeeTableModel(QAbstractTableModel):
+#Qt-Tabellenmodell: trennt die Daten von der Darstellung
+
+    HEADERS = [
+        "ID", "Vorname", "Nachname", "E-Mail",
+        "Telefon", "Abteilung", "Geburtsdatum"
+    ]
+
+    def __init__(self, employees=None, parent=None):
+        super().__init__(parent)
+        self._employees = [Employee.from_record(e) for e in (employees or [])]
+
+    def rowCount(self, parent=QModelIndex()):
+        return 0 if parent.isValid() else len(self._employees)
+
+    def columnCount(self, parent=QModelIndex()):
+        return 0 if parent.isValid() else len(self.HEADERS)
+
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+        if not index.isValid():
+            return None
+
+        employee = self._employees[index.row()]
+        values = [
+            employee.id if employee.id is not None else "",
+            employee.first_name,
+            employee.last_name,
+            employee.email,
+            employee.phone,
+            employee.department,
+            employee.birth_date or "",
+        ]
+
+        if role == Qt.ItemDataRole.DisplayRole:
+            return str(values[index.column()])
+        if role == Qt.ItemDataRole.TextAlignmentRole and index.column() == 0:
+            return int(Qt.AlignmentFlag.AlignCenter)
+        return None
+
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if role != Qt.ItemDataRole.DisplayRole:
+            return None
+        if orientation == Qt.Orientation.Horizontal:
+            return self.HEADERS[section]
+        return str(section + 1)
+
+    def employee_at(self, row):
+        if 0 <= row < len(self._employees):
+            return self._employees[row]
+        return None
+
+    def set_employees(self, employees):
+        self.beginResetModel()
+        self._employees = [Employee.from_record(e) for e in employees]
+        self.endResetModel()
 
 
 class EmployeeView(QWidget):
-    add_requested = pyqtSignal(Employee)
-    edit_requested = pyqtSignal(Employee)
-    delete_requested = pyqtSignal(int)
+    # Erwartete Repository-Methoden von Learner 4:
+    # get_all_employees() -> list[Employee | dict]
+    # add_employee(employee) -> optional neue ID
+    # update_employee(employee_id, employee) -> optional bool
+    # delete_employee(employee_id) -> optional bool
+    # Das Repository muss Employee-Objekte oder Dictionaries akzeptieren.
 
-    def __init__(self) -> None:
-        super().__init__()
-        self._all_employees: list[Employee] = []
-        self._issue_employee_ids: set[int] = set()
-        layout = QVBoxLayout(self)
+    def __init__(self, employee_repository, parent=None):
+        super().__init__(parent)
+        self.repository = employee_repository
 
-        # Toolbar: Search + Department Filter + Status Filter + CRUD buttons
-        top_bar = QHBoxLayout()
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search by name or email...")
-        self.search_input.textChanged.connect(self._apply_filter)
+        self.title_label = QLabel("Mitarbeiterverwaltung")
+        self.add_button = QPushButton("＋ Mitarbeiter hinzufügen")
+        self.edit_button = QPushButton("Bearbeiten")
+        self.delete_button = QPushButton("Löschen")
+        self.refresh_button = QPushButton("Aktualisieren")
 
-        self.dept_filter = QComboBox()
-        self.dept_filter.addItem("All Departments")
-        self.dept_filter.currentTextChanged.connect(self._apply_filter)
-
-        self.status_filter = QComboBox()
-        self.status_filter.addItems(["All Statuses", "Valid Only", "Has Issues"])
-        self.status_filter.currentTextChanged.connect(self._apply_filter)
-
-        self.btn_add = QPushButton("Add Employee")
-        self.btn_edit = QPushButton("Edit Selected")
-        self.btn_delete = QPushButton("Delete Selected")
-
-        self.btn_add.clicked.connect(self._handle_add)
-        self.btn_edit.clicked.connect(self._handle_edit)
-        self.btn_delete.clicked.connect(self._handle_delete)
-
-        top_bar.addWidget(self.search_input, 2)
-        top_bar.addWidget(self.dept_filter, 1)
-        top_bar.addWidget(self.status_filter, 1)
-        top_bar.addWidget(self.btn_add)
-        top_bar.addWidget(self.btn_edit)
-        top_bar.addWidget(self.btn_delete)
-
-        # Employee table
-        self.table = QTableWidget(0, 7)
-        self.table.setHorizontalHeaderLabels(
-            ["ID", "First Name", "Last Name", "Email", "Phone", "Department", "Birth Date"]
+        self.table = QTableView()
+        self.table_model = EmployeeTableModel()
+        self.table.setModel(self.table_model)
+        self.table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
         )
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.setSelectionMode(
+            QAbstractItemView.SelectionMode.SingleSelection
+        )
+        self.table.setEditTriggers(
+            QAbstractItemView.EditTrigger.NoEditTriggers
+        )
+        self.table.setAlternatingRowColors(True)
+        self.table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.ResizeToContents
+        )
+        self.table.horizontalHeader().setStretchLastSection(True)
 
-        layout.addLayout(top_bar)
+        top_buttons = QHBoxLayout()
+        top_buttons.addWidget(self.add_button)
+        top_buttons.addWidget(self.edit_button)
+        top_buttons.addWidget(self.delete_button)
+        top_buttons.addStretch()
+        top_buttons.addWidget(self.refresh_button)
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.title_label)
+        layout.addLayout(top_buttons)
         layout.addWidget(self.table)
 
-    def set_employees(self, employees: list[Employee], issue_ids: set[int] | None = None) -> None:
-        self._all_employees = employees
-        self._issue_employee_ids = issue_ids or set()
+        self.add_button.clicked.connect(self.add_employee)
+        self.edit_button.clicked.connect(self.edit_employee)
+        self.delete_button.clicked.connect(self.delete_employee)
+        self.refresh_button.clicked.connect(self.refresh_employees)
+        self.table.doubleClicked.connect(lambda _index: self.edit_employee())
 
-        # Refresh department dropdown options while preserving current selection
-        current_dept = self.dept_filter.currentText()
-        departments = sorted({e.department.strip() for e in employees if e.department and e.department.strip()})
-        self.dept_filter.blockSignals(True)
-        self.dept_filter.clear()
-        self.dept_filter.addItem("All Departments")
-        self.dept_filter.addItems(departments)
-        idx = self.dept_filter.findText(current_dept)
-        self.dept_filter.setCurrentIndex(idx if idx >= 0 else 0)
-        self.dept_filter.blockSignals(False)
+        self.refresh_employees()
 
-        self._apply_filter()
-
-    def _apply_filter(self) -> None:
-        query = self.search_input.text().strip().lower()
-        selected_dept = self.dept_filter.currentText()
-        selected_status = self.status_filter.currentText()
-
-        filtered: list[Employee] = []
-        for e in self._all_employees:
-            matches_text = (
-                query in e.first_name.lower()
-                or query in e.last_name.lower()
-                or query in e.email.lower()
+    def _selected_employee(self):
+        selected = self.table.selectionModel().selectedRows()
+        if not selected:
+            QMessageBox.information(
+                self, "Keine Auswahl",
+                "Bitte wähle zuerst einen Mitarbeiter aus."
             )
-            matches_dept = (
-                selected_dept == "All Departments"
-                or (e.department or "").strip() == selected_dept
-            )
-            has_issue = e.id in self._issue_employee_ids
-            matches_status = (
-                selected_status == "All Statuses"
-                or (selected_status == "Valid Only" and not has_issue)
-                or (selected_status == "Has Issues" and has_issue)
-            )
-            if matches_text and matches_dept and matches_status:
-                filtered.append(e)
-
-        self._populate_table(filtered)
-
-    def _populate_table(self, employees: list[Employee]) -> None:
-        self.table.setRowCount(len(employees))
-        for row_idx, emp in enumerate(employees):
-            values = [
-                str(emp.id or ""),
-                emp.first_name,
-                emp.last_name,
-                emp.email,
-                emp.phone or "",
-                emp.department or "",
-                emp.birth_date or "",
-            ]
-            for col_idx, val in enumerate(values):
-                self.table.setItem(row_idx, col_idx, QTableWidgetItem(val))
-
-    def _get_selected_employee(self) -> Employee | None:
-        selected_rows = self.table.selectionModel().selectedRows()
-        if not selected_rows:
             return None
-        row = selected_rows[0].row()
-        emp_id_text = self.table.item(row, 0).text()
-        if not emp_id_text.isdigit():
-            return None
-        emp_id = int(emp_id_text)
-        return next((e for e in self._all_employees if e.id == emp_id), None)
+        return self.table_model.employee_at(selected[0].row())
 
-    def _handle_add(self) -> None:
-        dialog = EmployeeDialog(parent=self)
+    def refresh_employees(self):
+        try:
+            employees = self.repository.get_all_employees()
+            self.table_model.set_employees(employees)
+        except Exception as exc:
+            QMessageBox.critical(
+                self, "Datenbankfehler",
+                f"Mitarbeiter konnten nicht geladen werden:\n{exc}"
+            )
+
+    def add_employee(self):
+        dialog = EmployeeForm(self)
         if dialog.exec():
-            self.add_requested.emit(dialog.get_employee())
+            employee = dialog.get_employee_data()
+            try:
+                self.repository.add_employee(employee)
+                self.refresh_employees()
+                QMessageBox.information(
+                    self, "Erfolgreich",
+                    "Der Mitarbeiter wurde hinzugefügt."
+                )
+            except Exception as exc:
+                QMessageBox.critical(
+                    self, "Speicherfehler",
+                    f"Der Mitarbeiter konnte nicht gespeichert werden:\n{exc}"
+                )
 
-    def _handle_edit(self) -> None:
-        emp = self._get_selected_employee()
-        if not emp:
-            QMessageBox.information(self, "No Selection", "Please select an employee row to edit.")
-            return
-        dialog = EmployeeDialog(employee=emp, parent=self)
-        if dialog.exec():
-            self.edit_requested.emit(dialog.get_employee())
-
-    def _handle_delete(self) -> None:
-        emp = self._get_selected_employee()
-        if not emp or emp.id is None:
-            QMessageBox.information(self, "No Selection", "Please select an employee row to delete.")
+    def edit_employee(self):
+        employee = self._selected_employee()
+        if employee is None:
             return
 
-        reply = QMessageBox.question(
+        dialog = EmployeeForm(self, employee)
+        if dialog.exec():
+            updated_employee = dialog.get_employee_data()
+            try:
+                self.repository.update_employee(
+                    employee.id, updated_employee
+                )
+                self.refresh_employees()
+                QMessageBox.information(
+                    self, "Erfolgreich",
+                    "Die Änderungen wurden gespeichert."
+                )
+            except Exception as exc:
+                QMessageBox.critical(
+                    self, "Speicherfehler",
+                    f"Die Änderungen konnten nicht gespeichert werden:\n{exc}"
+                )
+
+    def delete_employee(self):
+        employee = self._selected_employee()
+        if employee is None:
+            return
+
+        answer = QMessageBox.question(
             self,
-            "Confirm Deletion",
-            f"Are you sure you want to delete {emp.first_name} {emp.last_name}?",
+            "Löschen bestätigen",
+            f"Soll {employee.first_name} {employee.last_name} wirklich gelöscht werden?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.StandardButton.Yes:
-            self.delete_requested.emit(emp.id)
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            self.repository.delete_employee(employee.id)
+            self.refresh_employees()
+            QMessageBox.information(
+                self, "Erfolgreich",
+                "Der Mitarbeiter wurde gelöscht."
+            )
+        except Exception as exc:
+            QMessageBox.critical(
+                self, "Löschfehler",
+                f"Der Mitarbeiter konnte nicht gelöscht werden:\n{exc}"
+            )
