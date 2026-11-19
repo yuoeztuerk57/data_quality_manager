@@ -1,3 +1,5 @@
+PRAGMA foreign_keys = ON;
+
 CREATE TABLE IF NOT EXISTS employees (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     first_name TEXT NOT NULL,
@@ -13,7 +15,7 @@ CREATE TABLE IF NOT EXISTS validation_results (
     employee_id INTEGER,
     column_name TEXT NOT NULL,
     error_message TEXT NOT NULL,
-    severity TEXT NOT NULL,
+    severity TEXT CHECK(severity IN ('ERROR', 'WARNING')) NOT NULL,
     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
 );
 

@@ -1,0 +1,6 @@
+first_name,last_name,email,phone,department,birth_date
+Max,Mustermann,max@test.de,0171234567,IT,1990-05-14
+Anna,Schmidt,anna@test.de,0171234568,HR,1988-11-23
+Peter,,peter@test.de,0171234569,IT,1995-02-10
+Max,Mustermann,max@test.de,0171234567,IT,1990-05-14
+Lisa,Meyer,invalid-email,0171234560,Sales,1992-07-19

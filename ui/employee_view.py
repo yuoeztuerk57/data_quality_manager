@@ -1,313 +1,158 @@
-from PyQt6.QtWidgets import *
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
-import csv
-import re
-
-app = QApplication([])
-
-# Main window
-window = QWidget()
-window.setWindowTitle("Employees")
-window.resize(1000, 800)
-
-layout = QVBoxLayout()
-
-# Title
-title = QLabel("Employees")
-layout.addWidget(title)
-
-# -----------------------------
-# Search and filter
-input_layout = QHBoxLayout()
-
-search_field = QLineEdit()
-search_field.setPlaceholderText("Search...")
-
-filter_label = QLabel("Filter by Department:")
-
-filter_combo = QComboBox()
-filter_combo.addItems(["All Company", "IT", "HR", "Sales", "Finance"])
-input_layout.addWidget(search_field)
-input_layout.addWidget(filter_label)
-input_layout.addWidget(filter_combo)
-
-layout.addLayout(input_layout)
-
-# -----------------------------
-# Buttons
-action_layout = QHBoxLayout()
-
-add_button = QPushButton("Add Employee")
-edit_button = QPushButton("Edit Employee")
-delete_button = QPushButton("Delete Employee")
-save_to_csv_button = QPushButton("Export to CSV")
-
-action_layout.addWidget(add_button)
-action_layout.addWidget(edit_button)
-action_layout.addWidget(delete_button)
-action_layout.addWidget(save_to_csv_button)
-
-layout.addLayout(action_layout)
-
-# -----------------------------
-# Employee table
-table = QTableWidget()
-
-table.setColumnCount(6)
-table.setHorizontalHeaderLabels(["ID", "Name", "Last Name", "Phone", "Email", "Abteilung"])
-table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-
-header_font = QFont()
-header_font.setBold(True)
-table.horizontalHeader().setFont(header_font)
-
-table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-
-table.setStyleSheet("QTableWidget::item:selected {background-color: #D3D3D3; color: black;}")
-
-table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-table.setSortingEnabled(True)
-
-layout.addWidget(table)
-
-# -----------------------------
-# Employee data (temporary database), remove when wir csv file erstllen.
-employees = [
-    [1, "Max", "Mustermann", "0171234567", "max@test.de", "IT"],
-    [2, "Anna", "Schmidt", "0171234568", "anna@test.de", "HR"],
-    [3, "Peter", "Müller", "0171234569", "peter@test.de", "IT"],
-    [4, "Lisa", "Meyer", "0171234560", "lisa@test.de", "Sales"],
-    [5, "John", "Becker", "0171234561", "john@test.de", "Finance"]
-]
-
-# Status label
-status_label = QLabel()
-layout.addWidget(status_label)
-
-# Display employees in table
-def update_table():
-
-    table.setSortingEnabled(False)
-    table.setRowCount(0)
-
-    search = search_field.text().lower()
-    department = filter_combo.currentText()
-
-    for employee in employees:
-        # Search filter
-        text = " ".join(map(str, employee)).lower()
-
-        if search not in text:
-            continue
-
-        # Department filter
-        if department != "All Company":
-            if employee[5] != department:
-                continue
-
-        row = table.rowCount()
-        table.insertRow(row)
-
-        for column, value in enumerate(employee):
-            table.setItem(row, column, QTableWidgetItem(str(value)))
-
-    table.setSortingEnabled(True)
-
-    status_label.setText(f"Total Employees: {table.rowCount()}")
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox,
+    QTableWidget, QTableWidgetItem, QPushButton, QMessageBox
+)
+from PyQt6.QtCore import pyqtSignal
+from models.employee import Employee
+from ui.employee_dialog import EmployeeDialog
 
 
-# -----------------------------
-# Add employee
-def add_employee():
-    form = QDialog(window)
-    form.setWindowTitle("Add Employee")
-    form_layout = QFormLayout()
+class EmployeeView(QWidget):
+    add_requested = pyqtSignal(Employee)
+    edit_requested = pyqtSignal(Employee)
+    delete_requested = pyqtSignal(int)
 
-    name = QLineEdit()
-    form_layout.addRow("Name:*", name)
+    def __init__(self) -> None:
+        super().__init__()
+        self._all_employees: list[Employee] = []
+        self._issue_employee_ids: set[int] = set()
+        layout = QVBoxLayout(self)
 
-    lastname = QLineEdit()
-    form_layout.addRow("Last Name:*", lastname)
+        # Toolbar: Search + Department Filter + Status Filter + CRUD buttons
+        top_bar = QHBoxLayout()
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Search by name or email...")
+        self.search_input.textChanged.connect(self._apply_filter)
 
-    phone = QLineEdit()
-    form_layout.addRow("Phone:*", phone)
+        self.dept_filter = QComboBox()
+        self.dept_filter.addItem("All Departments")
+        self.dept_filter.currentTextChanged.connect(self._apply_filter)
 
-    email = QLineEdit()
-    form_layout.addRow("Email:*", email)
+        self.status_filter = QComboBox()
+        self.status_filter.addItems(["All Statuses", "Valid Only", "Has Issues"])
+        self.status_filter.currentTextChanged.connect(self._apply_filter)
 
-    department = QComboBox()
-    department.addItems(["IT", "HR", "Sales", "Finance"])
-    form_layout.addRow("Department:*", department)
+        self.btn_add = QPushButton("Add Employee")
+        self.btn_edit = QPushButton("Edit Selected")
+        self.btn_delete = QPushButton("Delete Selected")
 
-    add = QPushButton("Add")
-    cancel = QPushButton("Cancel")
-    form_layout.addRow(add, cancel)
+        self.btn_add.clicked.connect(self._handle_add)
+        self.btn_edit.clicked.connect(self._handle_edit)
+        self.btn_delete.clicked.connect(self._handle_delete)
 
-    form.setLayout(form_layout)
+        top_bar.addWidget(self.search_input, 2)
+        top_bar.addWidget(self.dept_filter, 1)
+        top_bar.addWidget(self.status_filter, 1)
+        top_bar.addWidget(self.btn_add)
+        top_bar.addWidget(self.btn_edit)
+        top_bar.addWidget(self.btn_delete)
 
-#handle erroe messages:
-    def save():
-        if not all([name.text(), lastname.text(),phone.text(), email.text()]):
-            QMessageBox.warning(form, "Error", "Fill in mandatory fields!")
-            return
-
-        if not re.findall(r"[0-9]+", phone.text()):
-            QMessageBox.warning(form, "Error", "Phone can contain only numbers.")
-            return
-
-        if not re.findall(r"[^@\s]+@[^@\s]+\.[^@\s]+", email.text()):
-            QMessageBox.warning(form, "Error", "Invalid email format")
-            return
-
-        new_id = max([e[0] for e in employees], default=0) + 1
-        employees.append([new_id, name.text(), lastname.text(),phone.text(), email.text(), department.currentText()])
-        update_table()
-        form.accept()
-
-        QMessageBox.information(window, "Success", "Employee added!")
-
-    add.clicked.connect(save)
-    cancel.clicked.connect(form.reject)
-    form.exec()
-
-
-# -----------------------------
-# Get selected employee
-def get_selected_employee():
-
-    row = table.currentRow()
-
-    if row < 0:
-        QMessageBox.information(
-            window, "Information", "Please select an employee!"
+        # Employee table
+        self.table = QTableWidget(0, 7)
+        self.table.setHorizontalHeaderLabels(
+            ["ID", "First Name", "Last Name", "Email", "Phone", "Department", "Birth Date"]
         )
-        return None
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
 
-    employee_id = int(table.item(row, 0).text())
-    for employee in employees:
-        if employee[0] == employee_id:
-            return employee
-    return None
+        layout.addLayout(top_bar)
+        layout.addWidget(self.table)
 
+    def set_employees(self, employees: list[Employee], issue_ids: set[int] | None = None) -> None:
+        self._all_employees = employees
+        self._issue_employee_ids = issue_ids or set()
 
-# -----------------------------
-# Edit employee
-def edit_employee():
+        # Refresh department dropdown options while preserving current selection
+        current_dept = self.dept_filter.currentText()
+        departments = sorted({e.department.strip() for e in employees if e.department and e.department.strip()})
+        self.dept_filter.blockSignals(True)
+        self.dept_filter.clear()
+        self.dept_filter.addItem("All Departments")
+        self.dept_filter.addItems(departments)
+        idx = self.dept_filter.findText(current_dept)
+        self.dept_filter.setCurrentIndex(idx if idx >= 0 else 0)
+        self.dept_filter.blockSignals(False)
 
-    employee = get_selected_employee()
+        self._apply_filter()
 
-    if employee is None:
-        return
+    def _apply_filter(self) -> None:
+        query = self.search_input.text().strip().lower()
+        selected_dept = self.dept_filter.currentText()
+        selected_status = self.status_filter.currentText()
 
-    form = QDialog(window)
-    form.setWindowTitle("Edit Employee")
+        filtered: list[Employee] = []
+        for e in self._all_employees:
+            matches_text = (
+                query in e.first_name.lower()
+                or query in e.last_name.lower()
+                or query in e.email.lower()
+            )
+            matches_dept = (
+                selected_dept == "All Departments"
+                or (e.department or "").strip() == selected_dept
+            )
+            has_issue = e.id in self._issue_employee_ids
+            matches_status = (
+                selected_status == "All Statuses"
+                or (selected_status == "Valid Only" and not has_issue)
+                or (selected_status == "Has Issues" and has_issue)
+            )
+            if matches_text and matches_dept and matches_status:
+                filtered.append(e)
 
-    form_layout = QFormLayout()
+        self._populate_table(filtered)
 
-    id_field = QLineEdit(str(employee[0]))
-    id_field.setEnabled(False)
-    id_field.setStyleSheet("QLineEdit:disabled {background-color: #D3D3D3;color: #555555;}")
-    form_layout.addRow("ID:*", id_field)
+    def _populate_table(self, employees: list[Employee]) -> None:
+        self.table.setRowCount(len(employees))
+        for row_idx, emp in enumerate(employees):
+            values = [
+                str(emp.id or ""),
+                emp.first_name,
+                emp.last_name,
+                emp.email,
+                emp.phone or "",
+                emp.department or "",
+                emp.birth_date or "",
+            ]
+            for col_idx, val in enumerate(values):
+                self.table.setItem(row_idx, col_idx, QTableWidgetItem(val))
 
-    name = QLineEdit(employee[1])
-    form_layout.addRow("Name:*", name)
+    def _get_selected_employee(self) -> Employee | None:
+        selected_rows = self.table.selectionModel().selectedRows()
+        if not selected_rows:
+            return None
+        row = selected_rows[0].row()
+        emp_id_text = self.table.item(row, 0).text()
+        if not emp_id_text.isdigit():
+            return None
+        emp_id = int(emp_id_text)
+        return next((e for e in self._all_employees if e.id == emp_id), None)
 
-    lastname = QLineEdit(employee[2])
-    form_layout.addRow("Last Name:*", lastname)
+    def _handle_add(self) -> None:
+        dialog = EmployeeDialog(parent=self)
+        if dialog.exec():
+            self.add_requested.emit(dialog.get_employee())
 
-    phone = QLineEdit(employee[3])
-    form_layout.addRow("Phone:*", phone)
+    def _handle_edit(self) -> None:
+        emp = self._get_selected_employee()
+        if not emp:
+            QMessageBox.information(self, "No Selection", "Please select an employee row to edit.")
+            return
+        dialog = EmployeeDialog(employee=emp, parent=self)
+        if dialog.exec():
+            self.edit_requested.emit(dialog.get_employee())
 
-    email = QLineEdit(employee[4])
-    form_layout.addRow("Email:*", email)
-
-    department = QComboBox()
-    department.addItems(["IT", "HR", "Sales", "Finance"])
-    department.setCurrentText(employee[5])
-    form_layout.addRow("Department:*", department)
-
-    save = QPushButton("Save")
-    cancel = QPushButton("Cancel")
-    form_layout.addRow(save, cancel)
-
-    form.setLayout(form_layout)
-
-    def update():
-
-        if not all([name.text(), lastname.text(), phone.text(), email.text()]):
-            QMessageBox.warning(form, "Error", "Fill in mandatory fields!")
+    def _handle_delete(self) -> None:
+        emp = self._get_selected_employee()
+        if not emp or emp.id is None:
+            QMessageBox.information(self, "No Selection", "Please select an employee row to delete.")
             return
 
-        if not re.fullmatch(r"[0-9]+", phone.text()):
-            QMessageBox.warning(form, "Error", "Phone can contain only numbers")
-            return
-
-        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email.text()):
-            QMessageBox.warning(form, "Error", "Invalid email format.")
-            return
-
-        employee[1:] = [name.text(), lastname.text(), phone.text(), email.text(), department.currentText()]
-
-        update_table()
-        form.accept()
-
-        QMessageBox.information(window, "Success", "Edits saved to employee.")
-
-    save.clicked.connect(update)
-    cancel.clicked.connect(form.reject)
-
-    form.exec()
-
-# -----------------------------
-# Delete employee
-def delete_employee():
-
-    employee = get_selected_employee()
-
-    if employee is None:
-        return
-
-    answer = QMessageBox.question( window, "Delete Employee", "Are you sure you want to delete this employee?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-
-    if answer == QMessageBox.StandardButton.Yes:
-        employees.remove(employee)
-        update_table()
-
-        QMessageBox.information(window, "Success", "Employee deleted!")
-
-# -----------------------------
-# Export to CSV
-def save_to_csv():
-
-    filename, _ = QFileDialog.getSaveFileName(window, "Save CSV", "employees.csv", "CSV Files (*.csv)")
-
-    if filename:
-        with open(filename, "w", newline="", encoding="utf-8-sig") as file:
-            writer = csv.writer(file)
-            writer.writerow(["ID", "Name", "Last Name", "Phone", "Email", "Department"])
-
-            for row in range(table.rowCount()):
-                writer.writerow([table.item(row, col).text() for col in range(6)])
-
-        QMessageBox.information(window, "Success", "CSV exported.")
-
-
-# -----------------------------
-# Connect buttons and filters
-add_button.clicked.connect(add_employee)
-edit_button.clicked.connect(edit_employee)
-delete_button.clicked.connect(delete_employee)
-save_to_csv_button.clicked.connect(save_to_csv)
-
-search_field.textChanged.connect(update_table)
-filter_combo.currentTextChanged.connect(update_table)
-
-# Initial display
-update_table()
-
-# -----------------------------
-window.setLayout(layout)
-window.show()
-
-app.exec()
+        reply = QMessageBox.question(
+            self,
+            "Confirm Deletion",
+            f"Are you sure you want to delete {emp.first_name} {emp.last_name}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.delete_requested.emit(emp.id)

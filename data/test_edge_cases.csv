@@ -1,0 +1,11 @@
+first_name,last_name,email,phone,department,birth_date
+Max,Mustermann,max@test.de,0171234567,IT,1990-05-14
+Anna,Schmidt,anna@test.de,0171234568,HR,1988-11-23
+Peter,,peter@test.de,0171234569,IT,1995-02-10
+Max,Mustermann,max@test.de,0171234567,IT,1990-05-14
+Lisa,Meyer,invalid-email,0171234560,Sales,1992-07-19
+Tom,Weber,tom@test.de,abc-not-a-phone,Marketing,1985-03-30
+Sarah,Koch,sarah@test.de,0171999888,Finance,2029-99-99
+,Becker,becker@test.de,0171555444,IT,1991-08-12
+Julia,Hoffmann,,0171666777,HR,1994-12-01
+Lukas  ,  Wagner  ,lukas@test.de,0171888999,Sales,1989-04-18

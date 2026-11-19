@@ -1,19 +1,19 @@
-import os
 import sqlite3
+from pathlib import Path
 
-DEFAULT_DB_PATH = "data/dataquality.db"
-DEFAULT_SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.sql")
+DB_PATH = Path("data/data_quality.db")
+SCHEMA_PATH = Path("database/schema.sql")
 
-def get_connection(db_path=DEFAULT_DB_PATH):
-    folder = os.path.dirname(db_path)
-    if folder:
-        os.makedirs(folder, exist_ok=True)
-    connection = sqlite3.connect(db_path)
-    connection.execute("PRAGMA foreign_keys = ON;")
-    return connection
 
-def init_db(connection, schema_path=DEFAULT_SCHEMA_PATH):
-    with open(schema_path, "r", encoding="utf-8") as file:
-        schema_sql = file.read()
-    connection.executescript(schema_sql)
-    connection.commit()
+def get_connection(db_path: Path = DB_PATH) -> sqlite3.Connection:
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
+    return conn
+
+
+def init_db(db_path: Path = DB_PATH) -> None:
+    with get_connection(db_path) as conn:
+        schema = SCHEMA_PATH.read_text(encoding="utf-8")
+        conn.executescript(schema)
