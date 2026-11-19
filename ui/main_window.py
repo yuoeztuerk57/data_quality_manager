@@ -68,7 +68,7 @@ class MainWindow(QMainWindow):
         self.dept_filter.currentTextChanged.connect(self._filter_db_table)
         db_toolbar.addWidget(self.dept_filter)
 
-        self.btn_db_del = QPushButton("Del")
+        self.btn_db_del = QPushButton("Delete")
         self.btn_db_edit = QPushButton("Edit")
         self.btn_db_new = QPushButton("+ Neu")
         self.btn_export_csv = QPushButton("CSV exportieren")
@@ -84,8 +84,8 @@ class MainWindow(QMainWindow):
             db_toolbar.addWidget(btn)
         root.addLayout(db_toolbar)
 
-        self.db_table = QTableWidget(0, 6)
-        self.db_table.setHorizontalHeaderLabels(["ID", "Vorname", "Nachname", "E-Mail", "Telefon", "Abteilung"])
+        self.db_table = QTableWidget(0, 7)
+        self.db_table.setHorizontalHeaderLabels(["ID", "Vorname", "Nachname", "E-Mail", "Telefon", "Abteilung" , "Geburtsdatum"])
         self.db_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.db_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.db_table.setSortingEnabled(True)
@@ -121,9 +121,9 @@ class MainWindow(QMainWindow):
             csv_toolbar.addWidget(btn)
         root.addLayout(csv_toolbar)
 
-        self.preview_table = QTableWidget(0, 8)
+        self.preview_table = QTableWidget(0, 9)
         self.preview_table.setHorizontalHeaderLabels(
-            ["Zeile", "Vorname", "Nachname", "E-Mail", "Telefon", "Abteilung", "Status", "Fehlermeldung"]
+            ["Zeile", "Vorname", "Nachname", "E-Mail", "Telefon", "Abteilung","Geburtsdatum", "Status", "Fehlermeldung"]
         )
         self.preview_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.preview_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -141,7 +141,7 @@ class MainWindow(QMainWindow):
         return lbl
 
     def _setup_db_sort_arrows(self) -> None:
-        headers = ["ID", "Vorname", "Nachname", "E-Mail", "Telefon", "Abteilung"]
+        headers = ["ID", "Vorname", "Nachname", "E-Mail", "Telefon", "Abteilung", "Geburtsdatum"]
         header = self.db_table.horizontalHeader()
         header.setSortIndicatorShown(False)
         header.setStyleSheet("QHeaderView::up-arrow, QHeaderView::down-arrow { width: 0px; height: 0px; }")
@@ -186,6 +186,7 @@ class MainWindow(QMainWindow):
                 e.email or "",
                 e.phone or "",
                 e.department or "",
+                e.birth_date or "",
             ]
             matches_search = (not q) or any(q in field.lower() for field in searchable_fields)
             matches_dept = (dept == "Alle") or ((e.department or "").strip() == dept)
@@ -202,7 +203,7 @@ class MainWindow(QMainWindow):
                 id_item.setData(Qt.ItemDataRole.DisplayRole, emp.id)
             self.db_table.setItem(r, 0, id_item)
 
-            other_vals = [emp.first_name, emp.last_name, emp.email, emp.phone or "", emp.department or ""]
+            other_vals = [emp.first_name, emp.last_name, emp.email, emp.phone or "", emp.department or "", emp.birth_date or "",]
             for c, val in enumerate(other_vals, start=1):
                 self.db_table.setItem(r, c, QTableWidgetItem(val))
         self.db_table.setSortingEnabled(True)
@@ -290,7 +291,7 @@ class MainWindow(QMainWindow):
                 valid_cnt += 1
 
             msg = "; ".join(f"{i.error_message} ({i.severity})" for i in issues) or "OK"
-            vals = [str(idx + 1), emp.first_name, emp.last_name, emp.email, emp.phone or "", emp.department or "", status, msg]
+            vals = [str(idx + 1), emp.first_name, emp.last_name, emp.email, emp.phone or "", emp.department or "", emp.birth_date or "", status, msg]
             for c, val in enumerate(vals):
                 item = QTableWidgetItem(val)
                 item.setBackground(bg)
