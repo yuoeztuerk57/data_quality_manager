@@ -222,7 +222,11 @@ class MainWindow(QMainWindow):
                 phone=r.get("phone") or None,
                 department=r.get("department") or None,
                 birth_date=r.get("birth_date") or None,
-            )]
+            )
+            for r in rows
+        ]
+        self._revalidate_staged()
+
 
 
     def _revalidate_staged(self) -> None:
