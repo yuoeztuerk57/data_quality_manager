@@ -1,6 +1,7 @@
 from typing import Optional
+from PyQt6.QtCore import QDate
 from PyQt6.QtWidgets import (
-    QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QMessageBox
+    QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QMessageBox, QDateEdit
 )
 from models.employee import Employee
 
@@ -29,8 +30,15 @@ class EmployeeDialog(QDialog):
         self.department_input = QLineEdit(employee.department or "" if employee else "")
         self.department_input.setPlaceholderText("Enter department")
         
-        self.birth_date_input = QLineEdit(employee.birth_date or "" if employee else "")
-        self.birth_date_input.setPlaceholderText("YYYY-MM-DD")
+       
+        self.birth_date_input = QDateEdit()
+        self.birth_date_input.setCalendarPopup(True)
+        self.birth_date_input.setDisplayFormat("yyyy-MM-dd")
+        self.birth_date_input.setDate(QDate.currentDate())
+        self.birth_date_input.setSpecialValueText("Nicht angegeben")
+        self.birth_date_input.setMinimumDate(QDate(1900, 1, 1))
+        self.birth_date_input.setMaximumDate(QDate.currentDate())
+        
 
         layout.addRow("First Name *:", self.first_name_input)
         layout.addRow("Last Name *:", self.last_name_input)
