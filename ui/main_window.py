@@ -1,10 +1,6 @@
 from datetime import datetime
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QComboBox, QPushButton, QTableWidget, QTableWidgetItem,
-    QFileDialog, QMessageBox, QStatusBar, QHeaderView, QFrame
-)
+from PyQt6.QtWidgets import *
 from PyQt6.QtGui import QColor
 from database.connection import init_db
 from database.employee_repository import EmployeeRepository
@@ -18,6 +14,7 @@ from ui.employee_dialog import EmployeeDialog
 
 
 class MainWindow(QMainWindow):
+    
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("DataQuality Manager")
@@ -135,6 +132,7 @@ class MainWindow(QMainWindow):
         self._refresh_db_view()
         self._refresh_history_combo()
 
+
     def _make_badge(self, text: str, bg: str, fg: str) -> QLabel:
         lbl = QLabel(text)
         lbl.setStyleSheet(f"background-color: {bg}; color: {fg}; padding: 4px 10px; border-radius: 10px; font-weight: bold;")
@@ -228,10 +226,12 @@ class MainWindow(QMainWindow):
                 msgs = "\n".join(f.error_message for f in row_issues)
                 QMessageBox.warning(self, "Ungültige Daten", f"Speichern abgebrochen:\n{msgs}")
                 return
+            QMessageBox.information(self, "Success", "          Employee added!             ")
             self.repo.add_employee(candidate)
             self._refresh_db_view()
             if self._staged_rows:
                 self._revalidate_staged()
+               
 
     def _edit_db_employee(self) -> None:
         emp = self._get_selected_db_emp()
@@ -242,6 +242,8 @@ class MainWindow(QMainWindow):
         if dlg.exec():
             self.repo.update_employee(dlg.get_employee())
             self._refresh_db_view()
+            QMessageBox.information(self, "Success", "       Edits saved to employee.        ")
+
             if self._staged_rows:
                 self._revalidate_staged()
 
@@ -252,6 +254,7 @@ class MainWindow(QMainWindow):
             return
         if QMessageBox.question(self, "Löschen bestätigen", f"{emp.first_name} {emp.last_name} wirklich löschen?") == QMessageBox.StandardButton.Yes:
             self.repo.delete_employee(emp.id)
+            QMessageBox.information(self, "Success", "      Employee has been successfully deleted!        ")
             self._refresh_db_view()
             if self._staged_rows:
                 self._revalidate_staged()

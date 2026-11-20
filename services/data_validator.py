@@ -29,7 +29,7 @@ def validate_records(records: list[Employee]) -> list[ValidationResult]:
         if emp.phone and emp.phone.strip():
             if not PHONE_REGEX.match(emp.phone.strip()):
                 results.append(ValidationResult("phone", f"Invalid phone format: '{emp.phone}'.", "ERROR", emp.id, idx))
-
+                return
         # Birth date check (optional field, YYYY-MM-DD)
         if emp.birth_date and emp.birth_date.strip():
             try:

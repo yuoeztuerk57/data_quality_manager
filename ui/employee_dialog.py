@@ -80,6 +80,7 @@ class EmployeeDialog(QDialog):
         last_name = self.last_name_input.text().strip()
         email = self.email_input.text().strip()
         birth_date = self.birth_date_input.text().strip()
+        phone = self.phone_input.text().strip()
 
         if not first_name or not last_name or not email:
             QMessageBox.warning(self, "Fehlende Angaben", "Vorname, Nachname und E-Mail sind Pflichtfelder.")
@@ -92,6 +93,10 @@ class EmployeeDialog(QDialog):
         if any(ch.isdigit() for ch in first_name + last_name):
             QMessageBox.warning(self, "Ungültiger Name", "Vor- und Nachname dürfen keine Zahlen enthalten.")
             return
+        if not re.match(r"^\+?[0-9\s\-()]{6,20}$", phone):
+            QMessageBox.warning(self, "Ungültige Phone-number", "Bitte eine gültige Telefon nummer eingeben.")
+            return
+
 
         if birth_date:
             try:
