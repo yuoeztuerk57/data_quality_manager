@@ -1,8 +1,6 @@
 import re
 from datetime import datetime
 from typing import Optional
-import re
-from PyQt6.QtCore import QDate
 from PyQt6.QtWidgets import *
 from models.employee import Employee
 
@@ -76,24 +74,15 @@ class EmployeeDialog(QDialog):
         if any(ch.isdigit() for ch in first_name + last_name):
             QMessageBox.warning(self, "Ungültiger Name", "Vor- und Nachname dürfen keine Zahlen enthalten.")
             return
-        #self.accept()
-       
-        if not re.findall(r"[0-9]+", self.phone_input.text()):
-            QMessageBox.warning(self, "Error", "Phone can contain only numbers.")
-            #return
-            self.phone_input.setFocus()
-            return
-         
- 
-        if not re.findall(r"[^@\s]+@[^@\s]+\.[^@\s]+", self.email_input.text()):
-            QMessageBox.warning(self, "Error", "Invalid email format")
-            #return
-            self.email_input.setFocus()
-            return
+
+        if birth_date:
+            try:
+                datetime.strptime(birth_date, "%Y-%m-%d")
+            except ValueError:
+                QMessageBox.warning(self, "Ungültiges Datum", "Geburtsdatum muss im Format JJJJ-MM-TT vorliegen.")
+                return
+
         self.accept()
- 
-    
- 
 
     def get_employee(self) -> Employee:
         return Employee(
