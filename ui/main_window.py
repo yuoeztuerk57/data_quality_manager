@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
         root.addLayout(db_toolbar)
 
         self.db_table = QTableWidget(0, 7)
-        self.db_table.setHorizontalHeaderLabels(["ID", "Vorname", "Nachname", "E-Mail", "Telefon", "Abteilung" , "Geburtsdatum"])
+        self.db_table.setHorizontalHeaderLabels(["ID", "Vorname", "Nachname", "E-Mail", "Telefon", "Abteilung", "Geburtsdatum"])
         self.db_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.db_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.db_table.setSortingEnabled(True)
@@ -123,7 +123,7 @@ class MainWindow(QMainWindow):
 
         self.preview_table = QTableWidget(0, 9)
         self.preview_table.setHorizontalHeaderLabels(
-            ["Zeile", "Vorname", "Nachname", "E-Mail", "Telefon", "Abteilung","Geburtsdatum", "Status", "Fehlermeldung"]
+            ["Zeile", "Vorname", "Nachname", "E-Mail", "Telefon", "Abteilung", "Geburtsdatum", "Status", "Fehlermeldung"]
         )
         self.preview_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.preview_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -178,7 +178,6 @@ class MainWindow(QMainWindow):
 
         filtered = []
         for e in self._db_employees:
-            # Alle durchsuchbaren Felder der oberen DB-Tabelle sammeln
             searchable_fields = [
                 str(e.id) if e.id is not None else "",
                 e.first_name or "",
@@ -197,13 +196,12 @@ class MainWindow(QMainWindow):
         self.db_table.setSortingEnabled(False)
         self.db_table.setRowCount(len(filtered))
         for r, emp in enumerate(filtered):
-            # ID als echte Zahl speichern, damit 2 vor 10 sortiert wird
             id_item = QTableWidgetItem()
             if emp.id is not None:
                 id_item.setData(Qt.ItemDataRole.DisplayRole, emp.id)
             self.db_table.setItem(r, 0, id_item)
 
-            other_vals = [emp.first_name, emp.last_name, emp.email, emp.phone or "", emp.department or "", emp.birth_date or "",]
+            other_vals = [emp.first_name, emp.last_name, emp.email, emp.phone or "", emp.department or "", emp.birth_date or ""]
             for c, val in enumerate(other_vals, start=1):
                 self.db_table.setItem(r, c, QTableWidgetItem(val))
         self.db_table.setSortingEnabled(True)
@@ -213,14 +211,27 @@ class MainWindow(QMainWindow):
         rows = self.db_table.selectionModel().selectedRows()
         if not rows:
             return None
-        emp_id = int(self.db_table.item(rows[0].row(), 0).text())
+        id_item = self.db_table.item(rows[0].row(), 0)
+        if not id_item or not id_item.text().strip().isdigit():
+            return None
+        emp_id = int(id_item.text().strip())
         return next((e for e in self._db_employees if e.id == emp_id), None)
 
     def _add_db_employee(self) -> None:
         dlg = EmployeeDialog(parent=self)
         if dlg.exec():
-            self.repo.add_employee(dlg.get_employee())
+            candidate = dlg.get_employee()
+            findings = validate_records(self._db_employees + [candidate])
+            new_row_index = len(self._db_employees) + 1
+            row_issues = [f for f in findings if f.row_index == new_row_index]
+            if any(f.severity == "ERROR" for f in row_issues):
+                msgs = "\n".join(f.error_message for f in row_issues)
+                QMessageBox.warning(self, "Ungültige Daten", f"Speichern abgebrochen:\n{msgs}")
+                return
+            self.repo.add_employee(candidate)
             self._refresh_db_view()
+            if self._staged_rows:
+                self._revalidate_staged()
 
     def _edit_db_employee(self) -> None:
         emp = self._get_selected_db_emp()
@@ -232,6 +243,8 @@ class MainWindow(QMainWindow):
             self.repo.update_employee(dlg.get_employee())
             self.department.setCurrentText(emp[5])
             self._refresh_db_view()
+            if self._staged_rows:
+                self._revalidate_staged()
 
     def _delete_db_employee(self) -> None:
         emp = self._get_selected_db_emp()
@@ -241,6 +254,8 @@ class MainWindow(QMainWindow):
         if QMessageBox.question(self, "Löschen bestätigen", f"{emp.first_name} {emp.last_name} wirklich löschen?") == QMessageBox.StandardButton.Yes:
             self.repo.delete_employee(emp.id)
             self._refresh_db_view()
+            if self._staged_rows:
+                self._revalidate_staged()
 
     # --- CSV STAGING & VALIDATION LOGIC ---
     def _load_csv(self) -> None:
@@ -265,8 +280,6 @@ class MainWindow(QMainWindow):
             for r in rows
         ]
         self._revalidate_staged()
-
-
 
     def _revalidate_staged(self) -> None:
         combined = self._db_employees + self._staged_rows
