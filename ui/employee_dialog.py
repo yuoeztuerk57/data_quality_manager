@@ -1,4 +1,5 @@
 import re
+from PyQt6.QtCore import QDate
 from datetime import datetime
 from typing import Optional
 from PyQt6.QtWidgets import *
@@ -6,7 +7,7 @@ from models.employee import Employee
 
 
 class EmployeeDialog(QDialog):
-    DEPARTMENTS = ["", "IT", "HR", "Sales", "Finance", "Marketing", "Other"]
+    DEPARTMENTS = [ "IT", "HR", "Sales", "Finance", "Marketing", "Other"]
 
     def __init__(self, employee: Optional[Employee] = None, parent=None) -> None:
         super().__init__(parent)
@@ -29,19 +30,36 @@ class EmployeeDialog(QDialog):
         self.phone_input.setPlaceholderText("Enter phone number")
 
         self.department_input = QComboBox()
-        self.department_input.setEditable(True)  # Remove this line if you only want fixed choices
+        
+        self.department_input.setEditable(False)  # Remove this line if you only want fixed choices
         self.department_input.addItems(self.DEPARTMENTS)
+        
+       
+                   
 
         current_dept = (employee.department or "").strip() if employee else ""
+        
         if current_dept:
             if self.department_input.findText(current_dept) == -1:
                 self.department_input.addItem(current_dept)
             self.department_input.setCurrentText(current_dept)
         else:
-            self.department_input.setCurrentIndex(0)
+            self.department_input.setPlaceholderText("Choose department")
+            self.department_input.setCurrentIndex(-1)
+            #self.department_input.setCurrentIndex(0)
+            
+           
 
-        self.birth_date_input = QLineEdit(employee.birth_date or "" if employee else "")
-        self.birth_date_input.setPlaceholderText("YYYY-MM-DD")
+        # self.birth_date_input = QLineEdit(employee.birth_date or "" if employee else "")
+        # self.birth_date_input.setPlaceholderText("YYYY-MM-DD")
+
+        self.birth_date_input = QDateEdit()
+        self.birth_date_input.setCalendarPopup(True)
+        self.birth_date_input.setDisplayFormat("yyyy-MM-dd")
+        self.birth_date_input.setDate(QDate.currentDate())
+        self.birth_date_input.setSpecialValueText("Nicht angegeben")
+        self.birth_date_input.setMinimumDate(QDate(1900, 1, 1))
+        self.birth_date_input.setMaximumDate(QDate.currentDate())
 
         layout.addRow("First Name *:", self.first_name_input)
         layout.addRow("Last Name *:", self.last_name_input)
