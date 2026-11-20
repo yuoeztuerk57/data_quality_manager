@@ -1,0 +1,8 @@
+id,first_name,last_name,email,phone,department,birth_date
+3,Max,Mustermann,max@test.de,0171234567,Sales,1990-05-14
+4,Anna,Schmidt,anna@test.de,0171234568,HR,1988-11-23
+11,Lukas,Wagner,lukas@test.de,0171888999,Sales,1989-04-18
+12,Maxim,Mustermann,max@test.de,0171234567,Sales,2026-11-20
+13,palu,heloo,sdasd@yahoo.com,1234354,Finance,2026-11-20
+17,Hawa,Wendu,ecco@yohoo.com,12344588888,Marketing,2026-11-20
+21,sadasfd,sdfdsfsd,sdfsdf@yahh.com,123213123,HR,2026-11-20

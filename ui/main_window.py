@@ -11,6 +11,7 @@ from services.data_validator import validate_records
 from services.csv_exporter import export_employees_csv
 from services.report_generator import export_quality_report_json
 from ui.employee_dialog import EmployeeDialog
+from time import sleep
 
 
 class MainWindow(QMainWindow):
@@ -327,6 +328,7 @@ class MainWindow(QMainWindow):
         if dlg.exec():
             self._staged_rows[idx] = dlg.get_employee()
             self._revalidate_staged()
+            QMessageBox.information(self, "Success", "Employee successfully updated in CSV Import")
 
     def _delete_staged_row(self) -> None:
         rows = self.preview_table.selectionModel().selectedRows()
@@ -334,6 +336,7 @@ class MainWindow(QMainWindow):
             return
         del self._staged_rows[rows[0].row()]
         self._revalidate_staged()
+        QMessageBox.information(self, "Success", "Employee successfully deleted from CSV import!")
 
     def _commit_valid_to_db(self) -> None:
         if not self._staged_rows:
@@ -346,10 +349,12 @@ class MainWindow(QMainWindow):
             else:
                 self.repo.add_employee(emp)
                 imported += 1
+                
 
         all_findings = [f for flist in self._staged_findings.values() for f in flist]
         if all_findings:
             self.repo.save_validation_results(all_findings)
+           
 
         self.repo.add_import_history(
             self._last_csv_name or "manual.csv",
@@ -357,12 +362,18 @@ class MainWindow(QMainWindow):
             imported,
             len(remaining)
         )
+        
 
         self._staged_rows = remaining
         self._refresh_db_view()
         self._revalidate_staged()
         self._refresh_history_combo()
         self.statusBar().showMessage(f"{imported} übernommen, {len(remaining)} abgelehnt.")
+       
+        if imported:
+            QMessageBox.information(self,"Import Successful",
+            f"{imported} employees successfully imported into the database!")
+ 
 
     def _refresh_history_combo(self) -> None:
         self.history_combo.clear()
