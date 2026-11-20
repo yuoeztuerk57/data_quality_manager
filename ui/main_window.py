@@ -230,6 +230,7 @@ class MainWindow(QMainWindow):
         dlg = EmployeeDialog(employee=emp, parent=self)
         if dlg.exec():
             self.repo.update_employee(dlg.get_employee())
+            self.department.setCurrentText(emp[5])
             self._refresh_db_view()
 
     def _delete_db_employee(self) -> None:

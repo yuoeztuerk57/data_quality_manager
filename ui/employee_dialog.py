@@ -1,8 +1,7 @@
 from typing import Optional
+import re
 from PyQt6.QtCore import QDate
-from PyQt6.QtWidgets import (
-    QDialog, QFormLayout, QLineEdit, QDialogButtonBox, QMessageBox, QDateEdit
-)
+from PyQt6.QtWidgets import *
 from models.employee import Employee
 
 
@@ -27,8 +26,12 @@ class EmployeeDialog(QDialog):
         self.phone_input = QLineEdit(employee.phone or "" if employee else "")
         self.phone_input.setPlaceholderText("Enter phone number")
 
-        self.department_input = QLineEdit(employee.department or "" if employee else "")
-        self.department_input.setPlaceholderText("Enter department")
+        #self.department_input = QLineEdit(employee.department or "" if employee else "")
+        
+        self.department_input = QComboBox()
+        self.department_input.addItems(["IT", "HR", "Sales", "Finance", "OTHER"])
+        self.department_input.setPlaceholderText("Choose department")
+        self.department_input.setCurrentIndex(-1)
         
        
         self.birth_date_input = QDateEdit()
@@ -61,7 +64,24 @@ class EmployeeDialog(QDialog):
         if not self.email_input.text().strip():
             QMessageBox.warning(self, "Missing Data", "Email address is required.")
             return
+        #self.accept()
+       
+        if not re.findall(r"[0-9]+", self.phone_input.text()):
+            QMessageBox.warning(self, "Error", "Phone can contain only numbers.")
+            #return
+            self.phone_input.setFocus()
+            return
+         
+ 
+        if not re.findall(r"[^@\s]+@[^@\s]+\.[^@\s]+", self.email_input.text()):
+            QMessageBox.warning(self, "Error", "Invalid email format")
+            #return
+            self.email_input.setFocus()
+            return
         self.accept()
+ 
+    
+ 
 
     def get_employee(self) -> Employee:
         return Employee(
