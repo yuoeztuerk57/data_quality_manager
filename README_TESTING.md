@@ -1,60 +1,50 @@
 DataQuality Testing Dashboard
+Project Description:
 
-Projektbeschreibung:
+The Testing Dashboard is a standalone desktop application for quality assurance of the DataQuality Manager project.
 
-Das Testing Dashboard ist eine eigenständige Desktop-Anwendung zur Qualitätssicherung des DataQuality Manager-Projekts.
+The application was developed using Python and PyQt6.
 
-Die Anwendung wurde mit Python und PyQt6 entwickelt.
+Area of Responsibility:
 
-Verantwortungsbereich:
+Task 8: Integration and Testing
 
-Aufgabe 8: Integration und Testing
+My responsibilities include:
 
-Meine Aufgaben umfassen:
-
-    Entwicklung eines Test Runners
-    Auswertung der Testergebnisse
-    Automatisierte Tests mit pytest
-    Integrationstests
-    Entwicklung eines grafischen Testing Dashboards
-    Erstellung von JSON-Testberichten
-
-Technologien
-
-    Python
-    PyQt6
-    pytest
-    unittest
-    SQLite
-    JSON
-    Git und GitHub
-
+Development of a Test Runner
+Evaluation of test results
+Automated testing with pytest
+Integration testing
+Development of a graphical Testing Dashboard
+Creation of JSON test reports
+Technologies
+Python
+PyQt6
+pytest
+unittest
+SQLite
+JSON
+Git and GitHub
 Installation
 
-Virtuelle Umgebung aktivieren:
-
+Activate the virtual environment:
 source venv/bin/activate
 
-Abhängigkeiten installieren:
-
+Install dependencies:
 python -m pip install -r requirements.txt
 python -m pip install pytest PyQt6
 
-
-Testing Dashboard starten
-
+Start the Testing Dashboard
 QT_QPA_PLATFORM=xcb python testing_main.py
 
-Automatisierte Tests
-Alle Tests starten:
-
+Automated Tests
+Run all tests:
 python -m pytest -v
 
-Integrationstest starten:
-
+Run integration tests:
 python -m pytest -v tests/test_integration.py
 
-Dashboard-Funktionen
+Dashboard Features
 Run All Tests
 Run Database Tests
 Run Import Tests
@@ -64,24 +54,31 @@ Show Results
 Show Failed Tests
 Export JSON Report
 
-Integrationstest
+Integration Test
 
-Der Integrationstest überprüft folgenden Workflow:
+The integration test checks the following workflow:
 
-CSV Import -> Datenvalidierung -> SQLite -> CSV Export
+CSV Import -> Data Validation -> SQLite -> CSV Export
 
-Testergebnisse
+Test Results
 
-Letzter dokumentierter Testlauf:
+Last documented test run:
 
 Total Tests: 10
 Passed: 10
 Failed: 0
 Skipped: 0
 Status: PASSED
+JSON Test Report
 
-JSON-Testbericht
-
-Der Bericht wird gespeichert unter:
-
+The report is saved at:
 reports/test_report.json
+
+Screenshots
+
+Testing Dashboard
+docs/testing_dashboard1.png
+
+Integration Testing
+docs/integration_test1.png
+docs/integration_test2.png
