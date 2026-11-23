@@ -60,27 +60,29 @@ Anwendung starten:
 - Python3 main.py
 
 ## CSV datei Beispiel:
-first_name,last_name,email,phone,department
-Max,Mustermann,max@test.de,0171234567,IT
-Anna,Schmidt,anna@test.de,0171234568,HR
-Peter,,peter@test.de,0171234569,IT
-Max,Mustermann,max@test.de,0171234567,IT
-Lisa,Meyer,invalid-email,0171234560,Sales
+first_name  |last_name | email       | phone     | department|
+----------- | ---------|------------ | ----------| ----------|  
+Max         |Mustermann|max@test.de  | 0171234567|    IT     |
+Anna        |Schmidt   |anna@test.de | 0171234568|    HR     | 
+Peter       | ,,       |peter@test.de| 0171234569|    IT     |
+Max         |Mustermann|max@test.de  | 0171234567|    IT     |
+Lisa        |Meyer     |invalid-email| 0171234560|  Sales    |
+
 
 Beim import sollen fehlende erfordeliche Spalten erkannt und gemeldet werden.
 
 
 ## Projecktstrucktur:
 
-![alt text](<Bildschirmfoto vom 2026-11-23 09-28-26.png>)
-![alt text](<Bildschirmfoto vom 2026-11-23 09-30-07.png>)
+![alt text](Project_stuct.png)
+
 
 Dataenqualitätsprüfung:
 Die genaue Behandlung von Datensätzen mit Fehlern oder Warnungen (z. B. speichern, ablehnen oder trotzdem importieren) wird vom Team festgelegt.
 
 Application User Interface:
 
-![alt text](image.png)
+![alt text](main_window.png.png)
 
 ## Mögliche Erweiterungen:
 

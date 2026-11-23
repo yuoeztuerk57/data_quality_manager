@@ -96,14 +96,15 @@ python3 main.py
 
 The CSV file should contain the following columns:
 
-```csv
-first_name,last_name,email,phone,department
-Max,Mustermann,max@test.de,0171234567,IT
-Anna,Schmidt,anna@test.de,0171234568,HR
-Peter,,peter@test.de,0171234569,IT
-Max,Mustermann,max@test.de,0171234567,IT
-Lisa,Meyer,invalid-email,0171234560,Sales
-```
+### CSV-Testdaten
+
+| First Name | Last Name | Email | Phone | Department |
+|---|---|---|---|---|
+| Max | Mustermann | max@test.de | 0171234567 | IT |
+| Anna | Schmidt | anna@test.de | 0171234568 | HR |
+| Peter | – | peter@test.de | 0171234569 | IT |
+| Max | Mustermann | max@test.de | 0171234567 | IT |
+| Lisa | Meyer | invalid-email | 0171234560 | Sales |
 
 During import, missing required columns should be detected and reported to the user.
 
@@ -148,7 +149,7 @@ The team's decision on how to handle records with errors or warnings (e.g., stor
 
 The application will provide a graphical interface for importing, previewing, managing, and validating employee data.
 
-Screenshots of the application can be added here once the interface has been implemented.
+![alt text](mainwindow_en.png)
 
 ## Possible Extensions
 
