@@ -1,0 +1,43 @@
+{
+  "generated_at": "2026-11-23T08:27:45",
+  "summary": {
+    "total_records": 10,
+    "valid_records": 10,
+    "errors": 2,
+    "warnings": 2
+  },
+  "findings": [
+    {
+      "column_name": "email",
+      "error_message": "Duplicate record detected for Anna Schmidt.",
+      "severity": "WARNING",
+      "employee_id": null,
+      "row_index": 11,
+      "id": null
+    },
+    {
+      "column_name": "last_name",
+      "error_message": "Last name is required.",
+      "severity": "ERROR",
+      "employee_id": null,
+      "row_index": 12,
+      "id": null
+    },
+    {
+      "column_name": "email",
+      "error_message": "Duplicate record detected for Max Mustermann.",
+      "severity": "WARNING",
+      "employee_id": null,
+      "row_index": 13,
+      "id": null
+    },
+    {
+      "column_name": "email",
+      "error_message": "Invalid email format: 'invalid-email'.",
+      "severity": "ERROR",
+      "employee_id": null,
+      "row_index": 14,
+      "id": null
+    }
+  ]
+}
