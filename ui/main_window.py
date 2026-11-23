@@ -1,4 +1,6 @@
 from datetime import datetime
+import json
+from pathlib import Path
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import QColor
@@ -11,13 +13,30 @@ from services.data_validator import validate_records
 from services.csv_exporter import export_employees_csv
 from services.report_generator import export_quality_report_json
 from ui.employee_dialog import EmployeeDialog
-from time import sleep
+
+
+LANG_LABELS = {
+    "deutsch": "Deutsch",
+    "english": "English",
+}
+
+
+def _load_ui_translations() -> tuple[dict[str, dict], str]:
+    lang_path = Path(__file__).resolve().parent / "lang_ui.json"
+    with lang_path.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    languages = data.get("languages", {})
+    default_lang = data.get("default", "deutsch")
+    if default_lang not in languages and languages:
+        default_lang = next(iter(languages))
+    return languages, default_lang
 
 
 class MainWindow(QMainWindow):
-    
+
     def __init__(self) -> None:
         super().__init__()
+        self._translations, self._default_lang = _load_ui_translations()
         self.setWindowTitle("DataQuality Manager")
         self.resize(1180, 760)
 
@@ -26,13 +45,14 @@ class MainWindow(QMainWindow):
         self._db_employees: list[Employee] = []
         self._staged_rows: list[Employee] = []
         self._staged_findings: dict[int, list[ValidationResult]] = {}
+        self._active_sort_col: int | None = None
 
         central = QWidget()
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
         root.setSpacing(12)
 
-        # 1. TOP HEADER: Badges + Import-Historie
+        # 1. TOP HEADER: Badges + Import-Historie + Language Selector
         top_bar = QHBoxLayout()
         self.badge_db = self._make_badge("DB Gesamt: 0", "#6c757d", "white")
         self.badge_csv = self._make_badge("CSV Geprüft: 0", "#868e96", "white")
@@ -47,12 +67,22 @@ class MainWindow(QMainWindow):
         self.history_combo = QComboBox()
         self.history_combo.setMinimumWidth(360)
         top_bar.addWidget(self.history_combo)
+
+        self.lang_combo = QComboBox()
+        for lang_key in self._translations:
+            self.lang_combo.addItem(LANG_LABELS.get(lang_key, lang_key.capitalize()), lang_key)
+        default_idx = self.lang_combo.findData(self._default_lang)
+        if default_idx >= 0:
+            self.lang_combo.setCurrentIndex(default_idx)
+        self.lang_combo.currentIndexChanged.connect(self._on_language_changed)
+        top_bar.addWidget(self.lang_combo)
+
         root.addLayout(top_bar)
 
         # 2. UPPER PANEL: SQLite Datenbank - Mitarbeiter
-        db_title = QLabel("SQLite Datenbank - Mitarbeiter")
-        db_title.setStyleSheet("font-size: 16px; font-weight: bold;")
-        root.addWidget(db_title)
+        self.db_title = QLabel("SQLite Datenbank - Mitarbeiter")
+        self.db_title.setStyleSheet("font-size: 16px; font-weight: bold;")
+        root.addWidget(self.db_title)
 
         db_toolbar = QHBoxLayout()
         self.search_input = QLineEdit()
@@ -60,13 +90,14 @@ class MainWindow(QMainWindow):
         self.search_input.textChanged.connect(self._filter_db_table)
 
         db_toolbar.addWidget(self.search_input, 2)
-        db_toolbar.addWidget(QLabel("Abteilung:"))
+        self.dept_label = QLabel("Abteilung:")
+        db_toolbar.addWidget(self.dept_label)
         self.dept_filter = QComboBox()
         self.dept_filter.addItem("Alle")
         self.dept_filter.currentTextChanged.connect(self._filter_db_table)
         db_toolbar.addWidget(self.dept_filter)
 
-        self.btn_db_del = QPushButton("Delete")
+        self.btn_db_del = QPushButton("Del")
         self.btn_db_edit = QPushButton("Edit")
         self.btn_db_new = QPushButton("+ Neu")
         self.btn_export_csv = QPushButton("CSV exportieren")
@@ -96,9 +127,9 @@ class MainWindow(QMainWindow):
         root.addWidget(line)
 
         # 3. LOWER PANEL: CSV Import-Vorschau & Validierung
-        csv_title = QLabel("CSV Import-Vorschau & Validierung")
-        csv_title.setStyleSheet("font-size: 16px; font-weight: bold;")
-        root.addWidget(csv_title)
+        self.csv_title = QLabel("CSV Import-Vorschau & Validierung")
+        self.csv_title.setStyleSheet("font-size: 16px; font-weight: bold;")
+        root.addWidget(self.csv_title)
 
         csv_toolbar = QHBoxLayout()
         self.btn_load_csv = QPushButton("CSV laden")
@@ -132,38 +163,81 @@ class MainWindow(QMainWindow):
         self._last_csv_name = ""
         self._refresh_db_view()
         self._refresh_history_combo()
+        self._apply_language()
 
+    def _tr(self, key: str):
+        lang = self.lang_combo.currentData() or self._default_lang
+        lang_dict = self._translations.get(lang) or self._translations.get(self._default_lang) or {}
+        if key in lang_dict:
+            return lang_dict[key]
+        fallback_dict = self._translations.get("deutsch") or {}
+        return fallback_dict.get(key, key)
+
+    def _on_language_changed(self) -> None:
+        self._apply_language()
+
+    def _apply_language(self) -> None:
+        self.setWindowTitle(self._tr("window_title"))
+        self.db_title.setText(self._tr("db_title"))
+        self.search_input.setPlaceholderText(self._tr("search_placeholder"))
+        self.dept_label.setText(self._tr("dept_label"))
+        self.btn_db_del.setText(self._tr("btn_del"))
+        self.btn_db_edit.setText(self._tr("btn_edit"))
+        self.btn_db_new.setText(self._tr("btn_new"))
+        self.btn_export_csv.setText(self._tr("btn_export_csv"))
+        self.btn_export_json.setText(self._tr("btn_export_json"))
+
+        self.csv_title.setText(self._tr("csv_title"))
+        self.btn_load_csv.setText(self._tr("btn_load_csv"))
+        self.btn_stage_edit.setText(self._tr("btn_stage_edit"))
+        self.btn_stage_del.setText(self._tr("btn_stage_del"))
+        self.btn_commit_db.setText(self._tr("btn_commit"))
+        self.preview_table.setHorizontalHeaderLabels(self._tr("preview_headers"))
+
+        self._update_db_sort_header_labels()
+        self._refresh_db_view()
+        self._revalidate_staged()
+        self._refresh_history_combo()
 
     def _make_badge(self, text: str, bg: str, fg: str) -> QLabel:
         lbl = QLabel(text)
         lbl.setStyleSheet(f"background-color: {bg}; color: {fg}; padding: 4px 10px; border-radius: 10px; font-weight: bold;")
         return lbl
 
+    def _update_db_sort_header_labels(self) -> None:
+        headers = self._tr("db_headers")
+        header = self.db_table.horizontalHeader()
+        if self._active_sort_col is None:
+            self.db_table.setHorizontalHeaderLabels([f"{h}  ▲ ▼" for h in headers])
+            return
+        arrow = "▲" if header.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder else "▼"
+        self.db_table.setHorizontalHeaderLabels(
+            [f"{h}  {arrow}" if i == self._active_sort_col else f"{h}  ▲ ▼" for i, h in enumerate(headers)]
+        )
+
     def _setup_db_sort_arrows(self) -> None:
-        headers = ["ID", "Vorname", "Nachname", "E-Mail", "Telefon", "Abteilung", "Geburtsdatum"]
         header = self.db_table.horizontalHeader()
         header.setSortIndicatorShown(False)
         header.setStyleSheet("QHeaderView::up-arrow, QHeaderView::down-arrow { width: 0px; height: 0px; }")
-        self.db_table.setHorizontalHeaderLabels([f"{h}  ▲ ▼" for h in headers])
+        self._update_db_sort_header_labels()
 
         def on_header_clicked(col: int) -> None:
-            arrow = "▲" if header.sortIndicatorOrder() == Qt.SortOrder.AscendingOrder else "▼"
-            self.db_table.setHorizontalHeaderLabels(
-                [f"{h}  {arrow}" if i == col else f"{h}  ▲ ▼" for i, h in enumerate(headers)]
-            )
+            self._active_sort_col = col
+            self._update_db_sort_header_labels()
 
         header.sectionClicked.connect(on_header_clicked)
 
     # --- DB TABLE LOGIC ---
     def _refresh_db_view(self) -> None:
         self._db_employees = self.repo.get_all_employees()
-        self.badge_db.setText(f"DB Gesamt: {len(self._db_employees)}")
+        self.badge_db.setText(self._tr("db_total").format(n=len(self._db_employees)))
 
+        all_label = self._tr("dept_all")
         current = self.dept_filter.currentText()
         depts = sorted({e.department.strip() for e in self._db_employees if e.department and e.department.strip()})
         self.dept_filter.blockSignals(True)
         self.dept_filter.clear()
-        self.dept_filter.addItem("Alle")
+        self.dept_filter.addItem(all_label)
         self.dept_filter.addItems(depts)
         idx = self.dept_filter.findText(current)
         self.dept_filter.setCurrentIndex(idx if idx >= 0 else 0)
@@ -174,6 +248,7 @@ class MainWindow(QMainWindow):
     def _filter_db_table(self) -> None:
         q = self.search_input.text().strip().lower()
         dept = self.dept_filter.currentText()
+        all_label = self._tr("dept_all")
 
         filtered = []
         for e in self._db_employees:
@@ -187,7 +262,7 @@ class MainWindow(QMainWindow):
                 e.birth_date or "",
             ]
             matches_search = (not q) or any(q in field.lower() for field in searchable_fields)
-            matches_dept = (dept == "Alle") or ((e.department or "").strip() == dept)
+            matches_dept = (dept == all_label) or ((e.department or "").strip() == dept)
 
             if matches_search and matches_dept:
                 filtered.append(e)
@@ -225,49 +300,48 @@ class MainWindow(QMainWindow):
             row_issues = [f for f in findings if f.row_index == new_row_index]
             if any(f.severity == "ERROR" for f in row_issues):
                 msgs = "\n".join(f.error_message for f in row_issues)
-                QMessageBox.warning(self, "Ungültige Daten", f"Speichern abgebrochen:\n{msgs}")
+                QMessageBox.warning(self, self._tr("invalid_data_title"), self._tr("invalid_data_msg").format(msgs=msgs))
                 return
-            QMessageBox.information(self, "Success", "          Employee added!             ")
             self.repo.add_employee(candidate)
             self._refresh_db_view()
             if self._staged_rows:
                 self._revalidate_staged()
-               
+            QMessageBox.information(self, self._tr("success_title"), self._tr("emp_added_msg"))
 
     def _edit_db_employee(self) -> None:
         emp = self._get_selected_db_emp()
         if not emp:
-            QMessageBox.information(self, "Auswahl", "Bitte einen Mitarbeiter in der DB-Tabelle auswählen.")
+            QMessageBox.information(self, self._tr("select_title"), self._tr("select_edit_db"))
             return
         dlg = EmployeeDialog(employee=emp, parent=self)
         if dlg.exec():
             self.repo.update_employee(dlg.get_employee())
             self._refresh_db_view()
-            QMessageBox.information(self, "Success", "       Edits saved to employee.        ")
-
             if self._staged_rows:
                 self._revalidate_staged()
+            QMessageBox.information(self, self._tr("success_title"), self._tr("emp_updated_msg"))
 
     def _delete_db_employee(self) -> None:
         emp = self._get_selected_db_emp()
         if not emp or emp.id is None:
-            QMessageBox.information(self, "Auswahl", "Bitte einen Mitarbeiter zum Löschen auswählen.")
+            QMessageBox.information(self, self._tr("select_title"), self._tr("select_del_db"))
             return
-        if QMessageBox.question(self, "Löschen bestätigen", f"{emp.first_name} {emp.last_name} wirklich löschen?") == QMessageBox.StandardButton.Yes:
+        confirm_msg = self._tr("confirm_del_msg").format(name=f"{emp.first_name} {emp.last_name}")
+        if QMessageBox.question(self, self._tr("confirm_del_title"), confirm_msg) == QMessageBox.StandardButton.Yes:
             self.repo.delete_employee(emp.id)
-            QMessageBox.information(self, "Success", "      Employee has been successfully deleted!        ")
             self._refresh_db_view()
             if self._staged_rows:
                 self._revalidate_staged()
+            QMessageBox.information(self, self._tr("success_title"), self._tr("emp_deleted_msg"))
 
     # --- CSV STAGING & VALIDATION LOGIC ---
     def _load_csv(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, "CSV laden", "data/", "CSV (*.csv)")
+        path, _ = QFileDialog.getOpenFileName(self, self._tr("load_csv_title"), "data/", "CSV (*.csv)")
         if not path:
             return
         rows, errors = read_csv(path)
         if errors:
-            QMessageBox.warning(self, "CSV Fehler", "\n".join(errors))
+            QMessageBox.warning(self, self._tr("csv_err_title"), "\n".join(errors))
             return
 
         self._last_csv_name = path.split("/")[-1].split("\\")[-1]
@@ -298,13 +372,13 @@ class MainWindow(QMainWindow):
         for idx, emp in enumerate(self._staged_rows):
             issues = self._staged_findings.get(idx, [])
             if any(i.severity == "ERROR" for i in issues):
-                status, bg = "Fehler", QColor("#ffc9c9")
+                status, bg = self._tr("status_error"), QColor("#ffc9c9")
                 err_cnt += 1
             elif any(i.severity == "WARNING" for i in issues):
-                status, bg = "Warnung", QColor("#fff3bf")
+                status, bg = self._tr("status_warning"), QColor("#fff3bf")
                 warn_cnt += 1
             else:
-                status, bg = "Gültig", QColor("#d3f9d8")
+                status, bg = self._tr("status_valid"), QColor("#d3f9d8")
                 valid_cnt += 1
 
             msg = "; ".join(f"{i.error_message} ({i.severity})" for i in issues) or "OK"
@@ -314,10 +388,10 @@ class MainWindow(QMainWindow):
                 item.setBackground(bg)
                 self.preview_table.setItem(idx, c, item)
 
-        self.badge_csv.setText(f"CSV Geprüft: {len(self._staged_rows)}")
-        self.badge_valid.setText(f"Gültig: {valid_cnt}")
-        self.badge_warn.setText(f"Warnungen: {warn_cnt}")
-        self.badge_err.setText(f"Fehler: {err_cnt}")
+        self.badge_csv.setText(self._tr("csv_checked").format(n=len(self._staged_rows)))
+        self.badge_valid.setText(self._tr("valid").format(n=valid_cnt))
+        self.badge_warn.setText(self._tr("warnings").format(n=warn_cnt))
+        self.badge_err.setText(self._tr("errors").format(n=err_cnt))
 
     def _edit_staged_row(self) -> None:
         rows = self.preview_table.selectionModel().selectedRows()
@@ -328,7 +402,7 @@ class MainWindow(QMainWindow):
         if dlg.exec():
             self._staged_rows[idx] = dlg.get_employee()
             self._revalidate_staged()
-            QMessageBox.information(self, "Success", "Employee successfully updated in CSV Import")
+            QMessageBox.information(self, self._tr("success_title"), self._tr("stage_updated_msg"))
 
     def _delete_staged_row(self) -> None:
         rows = self.preview_table.selectionModel().selectedRows()
@@ -336,7 +410,7 @@ class MainWindow(QMainWindow):
             return
         del self._staged_rows[rows[0].row()]
         self._revalidate_staged()
-        QMessageBox.information(self, "Success", "Employee successfully deleted from CSV import!")
+        QMessageBox.information(self, self._tr("success_title"), self._tr("stage_deleted_msg"))
 
     def _commit_valid_to_db(self) -> None:
         if not self._staged_rows:
@@ -349,12 +423,10 @@ class MainWindow(QMainWindow):
             else:
                 self.repo.add_employee(emp)
                 imported += 1
-                
 
         all_findings = [f for flist in self._staged_findings.values() for f in flist]
         if all_findings:
             self.repo.save_validation_results(all_findings)
-           
 
         self.repo.add_import_history(
             self._last_csv_name or "manual.csv",
@@ -362,37 +434,44 @@ class MainWindow(QMainWindow):
             imported,
             len(remaining)
         )
-        
 
         self._staged_rows = remaining
         self._refresh_db_view()
         self._revalidate_staged()
         self._refresh_history_combo()
-        self.statusBar().showMessage(f"{imported} übernommen, {len(remaining)} abgelehnt.")
-       
+        self.statusBar().showMessage(self._tr("committed_msg").format(imported=imported, rejected=len(remaining)))
+
         if imported:
-            QMessageBox.information(self,"Import Successful",
-            f"{imported} employees successfully imported into the database!")
- 
+            QMessageBox.information(
+                self,
+                self._tr("import_done_title"),
+                self._tr("import_done_msg").format(imported=imported),
+            )
 
     def _refresh_history_combo(self) -> None:
         self.history_combo.clear()
         rows = self.repo.get_import_history()
         if not rows:
-            self.history_combo.addItem("Import-Historie: Noch keine Importe")
+            self.history_combo.addItem(self._tr("history_empty"))
             return
         for r in rows:
-            self.history_combo.addItem(f"Import-Historie: {r['filename']} ({r['import_date']} | {r['records_imported']} importiert, {r['records_rejected']} abgelehnt)")
+            item_text = self._tr("history_item").format(
+                filename=r["filename"],
+                date=r["import_date"],
+                imported=r["records_imported"],
+                rejected=r["records_rejected"],
+            )
+            self.history_combo.addItem(item_text)
 
     def _export_csv(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "CSV exportieren", "reports/employees_clean.csv", "CSV (*.csv)")
+        path, _ = QFileDialog.getSaveFileName(self, self._tr("export_csv_title"), "reports/employees_clean.csv", "CSV (*.csv)")
         if path:
             export_employees_csv(self._db_employees, path)
-            QMessageBox.information(self, "Export", f"CSV gespeichert unter:\n{path}")
+            QMessageBox.information(self, self._tr("export_done_title"), self._tr("export_csv_done").format(path=path))
 
     def _export_json(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(self, "JSON-Report exportieren", "reports/quality_report.json", "JSON (*.json)")
+        path, _ = QFileDialog.getSaveFileName(self, self._tr("export_json_title"), "reports/quality_report.json", "JSON (*.json)")
         if path:
             flat_findings = [f for flist in self._staged_findings.values() for f in flist]
             export_quality_report_json(len(self._db_employees), len(self._db_employees), flat_findings, path)
-            QMessageBox.information(self, "Export", f"JSON-Report gespeichert unter:\n{path}")
+            QMessageBox.information(self, self._tr("export_done_title"), self._tr("export_json_done").format(path=path))
