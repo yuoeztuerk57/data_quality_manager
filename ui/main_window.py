@@ -18,6 +18,7 @@ from ui.employee_dialog import EmployeeDialog
 LANG_LABELS = {
     "deutsch": "Deutsch",
     "english": "English",
+    "arabic": "العربية",
 }
 
 
@@ -177,6 +178,15 @@ class MainWindow(QMainWindow):
         self._apply_language()
 
     def _apply_language(self) -> None:
+        lang = self.lang_combo.currentData() or self._default_lang
+        is_rtl = lang == "arabic"
+        direction = Qt.LayoutDirection.RightToLeft if is_rtl else Qt.LayoutDirection.LeftToRight
+        self.setLayoutDirection(direction)
+        if self.centralWidget():
+            self.centralWidget().setLayoutDirection(direction)
+        self.db_table.setLayoutDirection(direction)
+        self.preview_table.setLayoutDirection(direction)
+
         self.setWindowTitle(self._tr("window_title"))
         self.db_title.setText(self._tr("db_title"))
         self.search_input.setPlaceholderText(self._tr("search_placeholder"))
