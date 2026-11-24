@@ -23,150 +23,21 @@ from testing.test_runner import TestRunner
 
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "testing_config.json"
 
-# Fallback-Sprachen, falls testing_config.json noch nicht existiert oder unvollstaendig ist
-FALLBACK_LANGUAGES = {
-    "en": "English",
-    "de": "Deutsch",
-    "uk": "Українська",
-}
 
-TEXTS = {
-    "en": {
-        "window_title": "DataQuality Testing Dashboard",
-        "header_title": "DATAQUALITY TESTING DASHBOARD",
-        "lang_label": "Language:",
-        "stats_group": "Test Overview",
-        "total": "Total",
-        "passed": "Passed",
-        "failed": "Failed",
-        "skipped": "Skipped",
-        "duration": "Duration",
-        "sec": "sec",
-        "buttons_group": "Test Control",
-        "btn_all": "Run All Tests",
-        "btn_database": "Database Tests",
-        "btn_import": "Import Tests",
-        "btn_validation": "Validation Tests",
-        "btn_integration": "Integration Tests",
-        "btn_failed": "Show Failed Tests",
-        "btn_export": "Export JSON Report",
-        "headers": ["Test Name", "Module", "Status", "Duration", "Message"],
-    },
-    "de": {
-        "window_title": "DataQuality Test-Dashboard",
-        "header_title": "DATAQUALITY TEST-DASHBOARD",
-        "lang_label": "Sprache:",
-        "stats_group": "Testübersicht",
-        "total": "Gesamt",
-        "passed": "Bestanden",
-        "failed": "Fehlgeschlagen",
-        "skipped": "Übersprungen",
-        "duration": "Dauer",
-        "sec": "Sek.",
-        "buttons_group": "Teststeuerung",
-        "btn_all": "Alle Tests starten",
-        "btn_database": "Datenbank-Tests",
-        "btn_import": "Import-Tests",
-        "btn_validation": "Validierungs-Tests",
-        "btn_integration": "Integrationstests",
-        "btn_failed": "Fehlgeschlagene anzeigen",
-        "btn_export": "JSON-Bericht exportieren",
-        "headers": ["Testname", "Modul", "Status", "Dauer", "Nachricht"],
-    },
-    "uk": {
-        "window_title": "DataQuality Панель тестування",
-        "header_title": "DATAQUALITY ПАНЕЛЬ ТЕСТУВАННЯ",
-        "lang_label": "Мова:",
-        "stats_group": "Огляд тестів",
-        "total": "Усього",
-        "passed": "Пройдено",
-        "failed": "Провалено",
-        "skipped": "Пропущено",
-        "duration": "Тривалість",
-        "sec": "сек.",
-        "buttons_group": "Керування тестами",
-        "btn_all": "Запустити всі тести",
-        "btn_database": "Тести БД",
-        "btn_import": "Тести імпорту",
-        "btn_validation": "Тести валідації",
-        "btn_integration": "Інтеграційні тести",
-        "btn_failed": "Показати провалені",
-        "btn_export": "Експортувати JSON-звіт",
-        "headers": ["Назва тесту", "Модуль", "Статус", "Тривалість", "Повідомлення"],
-    },
-}
-
-
-def read_config():
-    # Konfigurationsdatei sicher laden
-    if not CONFIG_PATH.exists():
-        return {}
-    try:
-        with CONFIG_PATH.open("r", encoding="utf-8") as file:
-            data = json.load(file)
-        return data if isinstance(data, dict) else {}
-    except (OSError, json.JSONDecodeError):
-        return {}
-
-
-def load_languages_from_config(config_data=None):
-    # Sprachen aus der Konfigurationsdatei lesen
-    data = read_config() if config_data is None else config_data
-    raw_languages = data.get("languages")
-
-    if isinstance(raw_languages, dict):
-        loaded = {
-            str(code): str(label)
-            for code, label in raw_languages.items()
-            if str(code) in TEXTS
-        }
-        if loaded:
-            return loaded
-
-    return dict(FALLBACK_LANGUAGES)
-
-
-def load_default_language(available_languages=None, config_data=None):
-    # Standardsprache aus der Konfiguration ermitteln
-    data = read_config() if config_data is None else config_data
-    languages = (
-        load_languages_from_config(data)
-        if available_languages is None
-        else available_languages
-    )
-    fallback = next(iter(languages))
-
-    lang = data.get("default_language", fallback)
-    return lang if lang in languages else fallback
-
-
-def save_default_language(lang, available_languages=None):
-    # Gewaehlte Sprache in testing_config.json speichern, ohne andere Felder zu loeschen
-    languages = (
-        load_languages_from_config()
-        if available_languages is None
-        else available_languages
-    )
-    if lang not in languages:
-        return
-
-    data = read_config()
-    if "languages" not in data or not isinstance(data["languages"], dict):
-        data["languages"] = dict(languages)
-    data["default_language"] = lang
-
-    with CONFIG_PATH.open("w", encoding="utf-8") as file:
-        json.dump(data, file, indent=2, ensure_ascii=False)
+def load_config():
+    # Konfigurationsdatei mit Sprachen und Texten laden
+    with CONFIG_PATH.open("r", encoding="utf-8") as file:
+        return json.load(file)
 
 
 class TestingDashboard(QWidget):
     def __init__(self, lang=None):
         super().__init__()
 
-        config_data = read_config()
-        self.available_languages = load_languages_from_config(config_data)
-        default_lang = load_default_language(self.available_languages, config_data)
-        self.lang = lang if lang in self.available_languages else default_lang
+        config = load_config()
+        self.languages = config["languages"]
+        self.translations = config["translations"]
+        self.lang = lang or config["default_language"]
 
         self.runner = TestRunner()
         self.report = TestReport()
@@ -189,12 +60,12 @@ class TestingDashboard(QWidget):
         self.lang_label = QLabel()
         self.lang_combo = QComboBox()
 
-        for lang_code, lang_name in self.available_languages.items():
+        for lang_code, lang_name in self.languages.items():
             self.lang_combo.addItem(lang_name, userData=lang_code)
 
-        current_index = self.lang_combo.findData(self.lang)
-        if current_index >= 0:
-            self.lang_combo.setCurrentIndex(current_index)
+        index = self.lang_combo.findData(self.lang)
+        if index >= 0:
+            self.lang_combo.setCurrentIndex(index)
 
         self.lang_combo.currentIndexChanged.connect(self.on_language_changed)
 
@@ -286,15 +157,11 @@ class TestingDashboard(QWidget):
         self.btn_export.clicked.connect(self.export_report)
 
     def on_language_changed(self, index):
-        new_lang = self.lang_combo.itemData(index)
-        if new_lang not in self.available_languages:
-            return
-        self.lang = new_lang
-        save_default_language(new_lang, self.available_languages)
+        self.lang = self.lang_combo.itemData(index)
         self.apply_language()
 
     def apply_language(self):
-        t = TEXTS[self.lang]
+        t = self.translations[self.lang]
 
         self.setWindowTitle(t["window_title"])
         self.title_label.setText(t["header_title"])
@@ -343,7 +210,7 @@ class TestingDashboard(QWidget):
             self.btn_all.setEnabled(True)
 
     def update_statistics(self):
-        t = TEXTS[self.lang]
+        t = self.translations[self.lang]
         summary = self.report.get_summary()
 
         self.lbl_total.setText(f"{t['total']}: {summary['total_tests']}")
